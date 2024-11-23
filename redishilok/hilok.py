@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 
-from aioredislock.rwctx import RedisRWLockCtx
+from redishilok.rwctx import RedisRWLockCtx
 
 
 class RedisHiLok:

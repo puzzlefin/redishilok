@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "aioredislock"
+name = "redishilok"
 version = "0.1.0"
-description = ""
+description = "Redis read-write distributed and hierarchical locking"
 authors = ["erik aronesty <erik@q32.com>"]
 readme = "README.md"
 

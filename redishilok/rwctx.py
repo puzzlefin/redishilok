@@ -1,7 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 
-from aioredislock.rwlock import RedisRWLock
+from redishilok.rwlock import RedisRWLock
 
 
 class RedisRWLockCtx:

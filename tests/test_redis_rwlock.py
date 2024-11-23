@@ -4,7 +4,7 @@ import threading
 import pytest
 from redis import asyncio as aioredis
 
-from aioredislock.rwlock import RedisRWLock
+from redishilok.rwlock import RedisRWLock
 
 
 @pytest.fixture

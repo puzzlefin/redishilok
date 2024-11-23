@@ -3,7 +3,7 @@ import asyncio
 import pytest
 from redis import asyncio as aioredis
 
-from aioredislock.rwctx import RedisRWLockCtx
+from redishilok.rwctx import RedisRWLockCtx
 
 
 @pytest.fixture
@@ -90,16 +90,16 @@ async def test_refresh_failure(redis_client):
     ok = True
 
     async def write_task():
-        async with lock_ctx.write():
-            nonlocal ok
-            await redis_client.delete("test_lock")
-            await asyncio.sleep(1)
-            # this isn't reached, because the lock is lost
-            ok = False
+        nonlocal ok
+        try:
+            async with lock_ctx.write():
+                # Simulate external lock tampering
+                await redis_client.hset("test_lock", "writer", "external_uuid")
+                await asyncio.sleep(2)
+                ok = False
+        except RuntimeError as e:
+            assert "Refresh failed" in str(e)
 
-    with pytest.raises(RuntimeError):
-        await write_task()
-
+    await write_task()
     assert ok
-
     await lock_ctx.lock.close()
