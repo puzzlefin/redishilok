@@ -53,9 +53,9 @@ class RedisRWLockCtx:
             self._stop_event.clear()
 
     @asynccontextmanager
-    async def read(self):
+    async def read(self, block=True, timeout=None):
         """Context manager for acquiring a read lock."""
-        acquired = await self.lock.acquire_read_lock(block=True)
+        acquired = await self.lock.acquire_read_lock(block=block, timeout=timeout)
         if not acquired:
             raise RuntimeError(f"Failed to acquire read lock for {self.lock_key}")
         try:
@@ -71,9 +71,9 @@ class RedisRWLockCtx:
             await self.lock.release_read_lock()
 
     @asynccontextmanager
-    async def write(self):
+    async def write(self, block=True, timeout=None):
         """Context manager for acquiring a write lock."""
-        acquired = await self.lock.acquire_write_lock(block=True)
+        acquired = await self.lock.acquire_write_lock(block=block, timeout=timeout)
         if not acquired:
             raise RuntimeError(f"Failed to acquire write lock for {self.lock_key}")
         try:
