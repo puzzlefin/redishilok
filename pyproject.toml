@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "aioredislock"
+version = "0.1.0"
+description = ""
+authors = ["erik aronesty <erik@q32.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+setuptools = "^75.6.0"
+redis = {extras = ["hiredis"], version = "^5.2.0"}
+
+
+[tool.poetry.group.dev.dependencies]
+pytest-asyncio = "^0.24.0"
+pre-commit = "^4.0.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
