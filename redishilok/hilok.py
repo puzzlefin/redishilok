@@ -68,7 +68,7 @@ class RedisHiLok:
 
     @staticmethod
     async def _release_hierarchy(
-        locks: list[tuple[RedisRWLockCtx, AbstractAsyncContextManager[None]]],
+        locks: list[tuple[RedisRWLockCtx, AbstractAsyncContextManager[None]]]
     ) -> None:
         for i, (lock, ctx) in enumerate(reversed(locks)):
             try:
