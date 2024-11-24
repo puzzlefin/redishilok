@@ -21,7 +21,7 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.11"
 redis = {extras = ["hiredis"], version = "^5.2.0"}
 
 
