@@ -30,26 +30,26 @@ async def test_read_lock():
 
 
 async def test_write_lock():
-    lock = RedisRWLock(redis_host, "test_lock", ttl=2000)
+    lock = RedisRWLock(redis_host, "test_lock_wr", ttl=2000)
 
     assert await lock.acquire_write_lock()
 
-    writer = await lock.redis.hget("test_lock", "writer")
+    writer = await lock.redis.hget("test_lock_wr", "writer")
     assert writer.decode() == lock.uuid
 
     await lock.refresh_lock(shared=False)
 
     assert await lock.release_write_lock()
 
-    writer = await lock.redis.hget("test_lock", "writer")
+    writer = await lock.redis.hget("test_lock_wr", "writer")
     assert writer is None
 
     await lock.close()
 
 
 async def test_read_write_conflict():
-    lock1 = RedisRWLock(redis_host, "test_lock", ttl=2000)
-    lock2 = RedisRWLock(redis_host, "test_lock", ttl=2000)
+    lock1 = RedisRWLock(redis_host, "test_lock_rw", ttl=2000)
+    lock2 = RedisRWLock(redis_host, "test_lock_rw", ttl=2000)
 
     assert await lock1.acquire_read_lock()
 
@@ -64,11 +64,11 @@ async def test_read_write_conflict():
 
 
 async def test_refresh_failure():
-    lock = RedisRWLock(redis_host, "test_lock", ttl=2000)
+    lock = RedisRWLock(redis_host, "test_lockxx", ttl=2000)
 
     assert await lock.acquire_write_lock()
 
-    await lock.redis.hset("test_lock", "writer", "external_uuid")
+    await lock.redis.hset("test_lockxx", "writer", "external_uuid")
 
     with pytest.raises(RuntimeError, match="Lock does not exist or is not held"):
         await lock.refresh_lock(shared=False)
@@ -76,13 +76,13 @@ async def test_refresh_failure():
 
 
 async def test_lock_expiry():
-    lock = RedisRWLock(redis_host, "test_lock", ttl=500)
+    lock = RedisRWLock(redis_host, "test_lockzz", ttl=500)
 
     assert await lock.acquire_write_lock()
 
     await asyncio.sleep(0.9)
 
-    writer = await lock.redis.hget("test_lock", "writer")
+    writer = await lock.redis.hget("test_lockzz", "writer")
     assert writer is None
     await lock.close()
 
@@ -94,7 +94,7 @@ async def test_threaded_increment():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         lock = RedisRWLock(
-            redis_host, "test_lock", ttl=2000
+            redis_host, "test_lockyy", ttl=2000
         )  # Independent lock per thread
         loop.run_until_complete(increment_task(lock, shared_counter))
         loop.run_until_complete(lock.close())
