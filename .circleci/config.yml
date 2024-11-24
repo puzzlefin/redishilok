@@ -13,7 +13,6 @@ jobs:
           command: |
             python -m pip install --upgrade pip
             python -m pip install poetry
-            poetry config virtualenvs.create false
             poetry install
       - run:
           name: Wait for Redis to be ready
@@ -25,15 +24,15 @@ jobs:
       - run:
           name: Lint
           command: |
-            ruff check .
-            ruff format --check .
-            mypy redishilok
+            poetry run ruff check .
+            poetry run ruff format --check .
+            poetry run mypy redishilok
       - run:
           name: Run tests
           environment:
             REDIS_URL: redis://redis:6379
           command: |
-            pytest -n 3 tests/ --cov=redishilok --cov-report=html --cov-fail-under=99
+            poetry run pytest -n 3 tests/ --cov=redishilok --cov-report=html --cov-fail-under=99
       - store_artifacts:
           path: htmlcov/
           destination: coverage_report
