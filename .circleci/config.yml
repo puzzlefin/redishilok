@@ -12,6 +12,7 @@ jobs:
           name: Install dependencies
           command: |
             python -m pip install --upgrade pip
+            python -m pip install poetry
             poetry install
       - run:
           name: Wait for Redis to be ready
