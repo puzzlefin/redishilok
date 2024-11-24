@@ -1,22 +1,9 @@
 import asyncio
 
-import pytest
-from redis import asyncio as aioredis
-
 from redishilok.rwctx import RedisRWLockCtx
 
 
-@pytest.fixture
-async def redis_client():
-    redis_url = "redis://localhost:6379/0"
-    redis = aioredis.from_url(redis_url)
-    await redis.flushdb()  # Ensure a clean slate
-    yield redis
-    await redis.flushdb()
-    await redis.aclose()
-
-
-async def test_read_lock_context(redis_client):
+async def test_read_lock_context():
     lock_ctx = RedisRWLockCtx("redis://localhost", "test_lock", ttl=2000)
 
     shared_counter = {"value": 0}
@@ -34,7 +21,7 @@ async def test_read_lock_context(redis_client):
     await lock_ctx.lock.close()
 
 
-async def test_write_lock_context(redis_client):
+async def test_write_lock_context():
     lock_ctx = RedisRWLockCtx("redis://localhost", "test_lock", ttl=2000)
 
     shared_counter = {"value": 0}
@@ -56,7 +43,7 @@ async def test_write_lock_context(redis_client):
     await lock_ctx.lock.close()
 
 
-async def test_read_write_conflict(redis_client):
+async def test_read_write_conflict():
     lock_ctx = RedisRWLockCtx("redis://localhost", "test_lock", ttl=2000)
 
     shared_counter = {"value": 0}
@@ -84,7 +71,7 @@ async def test_read_write_conflict(redis_client):
     await lock_ctx.lock.close()
 
 
-async def test_refresh_failure(redis_client):
+async def test_refresh_failure():
     lock_ctx = RedisRWLockCtx("redis://localhost", "test_lock", ttl=500)
 
     ok = True
@@ -94,7 +81,7 @@ async def test_refresh_failure(redis_client):
         try:
             async with lock_ctx.write():
                 # Simulate external lock tampering
-                await redis_client.hset("test_lock", "writer", "external_uuid")
+                await lock_ctx.lock.redis.hset("test_lock", "writer", "external_uuid")
                 for _ in range(6):
                     await asyncio.sleep(0.25)
                 ok = False

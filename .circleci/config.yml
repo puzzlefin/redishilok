@@ -1,0 +1,37 @@
+version: 2.1
+
+orbs:
+  redis: circleci/redis@1.3.0
+
+jobs:
+  build:
+    docker:
+      - image: cimg/python:3.11
+    steps:
+      - checkout
+      - redis/start:
+          image: redis:6-alpine
+      - run:
+          name: Install dependencies
+          command: |
+            python -m pip install --upgrade pip
+            poetry install
+      - run:
+          name: Lint
+          command: |
+            ruff check .
+            ruff format --check .
+            mypy redishilok
+      - run:
+          name: Run tests
+          command: |
+            pytest -n 3 tests/ --cov=redishilok --cov-report=html --cov-fail-under=99
+      - store_artifacts:
+          path: htmlcov/
+          destination: coverage_report
+
+workflows:
+  version: 2
+  build-and-test:
+    jobs:
+      - build

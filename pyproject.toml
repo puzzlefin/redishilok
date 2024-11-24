@@ -22,15 +22,24 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.12"
-setuptools = "^75.6.0"
 redis = {extras = ["hiredis"], version = "^5.2.0"}
 
 
 [tool.poetry.group.dev.dependencies]
+setuptools = "^75.6.0"
 pytest-asyncio = "^0.24.0"
 pre-commit = "^4.0.1"
 pytest-cov = "^6.0.0"
+mypy = "^1.13.0"
+ruff = "^0.8.0"
+pytest-xdist = "^3.6.1"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+
+[tool.mypy]
+strict = true
+# redis doesn't always have types
+disable_error_code = ["no-untyped-call"]

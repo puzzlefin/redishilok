@@ -1,5 +1,6 @@
 import logging
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from typing import Any, AsyncIterator
 
 from redis import asyncio as aioredis
 
@@ -10,10 +11,10 @@ class RedisHiLok:
     def __init__(
         self,
         redis: str | aioredis.Redis,
-        ttl=5000,
-        refresh_interval=2000,
-        separator="/",
-        cancel_on_lock_failure=True,
+        ttl: int = 5000,
+        refresh_interval: float = 2000,
+        separator: str = "/",
+        cancel_on_lock_failure: bool = True,
     ):
         if isinstance(redis, str):
             self.redis = aioredis.from_url(redis)
@@ -24,16 +25,16 @@ class RedisHiLok:
         self.separator = separator
         self.cancel_on_lock_failure = cancel_on_lock_failure
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "RedisHiLok":
         return self
 
-    async def __aexit__(self, exc_type, exc, tb):
+    async def __aexit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
         await self.close()
 
-    async def close(self):
+    async def close(self) -> None:
         await self.redis.aclose()
 
-    def _build_lock(self, path):
+    def _build_lock(self, path: str) -> RedisRWLockCtx:
         return RedisRWLockCtx(
             self.redis,
             path,
@@ -42,7 +43,9 @@ class RedisHiLok:
             cancel_on_lock_failure=self.cancel_on_lock_failure,
         )
 
-    async def _acquire_hierarchy(self, path, shared_last, block, timeout):
+    async def _acquire_hierarchy(
+        self, path: str, shared_last: bool, block: bool, timeout: float | None
+    ) -> list[tuple[RedisRWLockCtx, AbstractAsyncContextManager[None]]]:
         nodes = list(filter(lambda x: x, path.split(self.separator)))
         locks: list[tuple[RedisRWLockCtx, AbstractAsyncContextManager[None]]] = []
         try:
@@ -66,7 +69,7 @@ class RedisHiLok:
     @staticmethod
     async def _release_hierarchy(
         locks: list[tuple[RedisRWLockCtx, AbstractAsyncContextManager[None]]]
-    ):
+    ) -> None:
         for i, (lock, ctx) in enumerate(reversed(locks)):
             try:
                 await ctx.__aexit__(None, None, None)
@@ -76,7 +79,9 @@ class RedisHiLok:
                 logging.exception("Failed to release hilok")
 
     @asynccontextmanager
-    async def read(self, path, block=True, timeout=None):
+    async def read(
+        self, path: str, block: bool = True, timeout: float | None = None
+    ) -> AsyncIterator[None]:
         locks = await self._acquire_hierarchy(
             path, shared_last=True, block=block, timeout=timeout
         )
@@ -86,7 +91,9 @@ class RedisHiLok:
             await self._release_hierarchy(locks)
 
     @asynccontextmanager
-    async def write(self, path, block=True, timeout=None):
+    async def write(
+        self, path: str, block: bool = True, timeout: float | None = None
+    ) -> AsyncIterator[None]:
         locks = await self._acquire_hierarchy(
             path, shared_last=False, block=block, timeout=timeout
         )
