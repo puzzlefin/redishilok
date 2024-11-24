@@ -1,13 +1,16 @@
 import asyncio
+import os
 import threading
 
 import pytest
 
 from redishilok.rwlock import RedisRWLock
 
+redis_host = os.environ.get("REDIS_URL", "redis://localhost")
+
 
 async def test_read_lock():
-    lock = RedisRWLock("redis://localhost", "test_lock", ttl=2000)
+    lock = RedisRWLock("%s" % redis_host, "test_lock", ttl=2000)
 
     assert await lock.acquire_read_lock()
 
@@ -27,7 +30,7 @@ async def test_read_lock():
 
 
 async def test_write_lock():
-    lock = RedisRWLock("redis://localhost", "test_lock", ttl=2000)
+    lock = RedisRWLock(redis_host, "test_lock", ttl=2000)
 
     assert await lock.acquire_write_lock()
 
@@ -45,8 +48,8 @@ async def test_write_lock():
 
 
 async def test_read_write_conflict():
-    lock1 = RedisRWLock("redis://localhost", "test_lock", ttl=2000)
-    lock2 = RedisRWLock("redis://localhost", "test_lock", ttl=2000)
+    lock1 = RedisRWLock(redis_host, "test_lock", ttl=2000)
+    lock2 = RedisRWLock(redis_host, "test_lock", ttl=2000)
 
     assert await lock1.acquire_read_lock()
 
@@ -61,7 +64,7 @@ async def test_read_write_conflict():
 
 
 async def test_refresh_failure():
-    lock = RedisRWLock("redis://localhost", "test_lock", ttl=2000)
+    lock = RedisRWLock(redis_host, "test_lock", ttl=2000)
 
     assert await lock.acquire_write_lock()
 
@@ -73,7 +76,7 @@ async def test_refresh_failure():
 
 
 async def test_lock_expiry():
-    lock = RedisRWLock("redis://localhost", "test_lock", ttl=500)
+    lock = RedisRWLock(redis_host, "test_lock", ttl=500)
 
     assert await lock.acquire_write_lock()
 
@@ -91,7 +94,7 @@ async def test_threaded_increment():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         lock = RedisRWLock(
-            "redis://localhost", "test_lock", ttl=2000
+            redis_host, "test_lock", ttl=2000
         )  # Independent lock per thread
         loop.run_until_complete(increment_task(lock, shared_counter))
         loop.run_until_complete(lock.close())

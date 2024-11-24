@@ -4,9 +4,8 @@ jobs:
   build:
     docker:
       - image: cimg/python:3.11
-    services:
-      redis:
-        image: redis:6-alpine
+      - image: redis:6-alpine
+        name: redis
     steps:
       - checkout
       - run:
@@ -29,6 +28,8 @@ jobs:
             mypy redishilok
       - run:
           name: Run tests
+          environment:
+            REDIS_URL: redis://redis:6379
           command: |
             pytest -n 3 tests/ --cov=redishilok --cov-report=html --cov-fail-under=99
       - store_artifacts:

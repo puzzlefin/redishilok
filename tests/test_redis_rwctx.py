@@ -1,10 +1,13 @@
 import asyncio
+import os
 
 from redishilok.rwctx import RedisRWLockCtx
 
+redis_host = os.environ.get("REDIS_URL", "redis://localhost")
+
 
 async def test_read_lock_context():
-    lock_ctx = RedisRWLockCtx("redis://localhost", "test_lock", ttl=2000)
+    lock_ctx = RedisRWLockCtx(redis_host, "test_lock", ttl=2000)
 
     shared_counter = {"value": 0}
 
@@ -22,7 +25,7 @@ async def test_read_lock_context():
 
 
 async def test_write_lock_context():
-    lock_ctx = RedisRWLockCtx("redis://localhost", "test_lock", ttl=2000)
+    lock_ctx = RedisRWLockCtx(redis_host, "test_lock", ttl=2000)
 
     shared_counter = {"value": 0}
 
@@ -44,7 +47,7 @@ async def test_write_lock_context():
 
 
 async def test_read_write_conflict():
-    lock_ctx = RedisRWLockCtx("redis://localhost", "test_lock", ttl=2000)
+    lock_ctx = RedisRWLockCtx(redis_host, "test_lock", ttl=2000)
 
     shared_counter = {"value": 0}
 
@@ -72,7 +75,7 @@ async def test_read_write_conflict():
 
 
 async def test_refresh_failure():
-    lock_ctx = RedisRWLockCtx("redis://localhost", "test_lock", ttl=500)
+    lock_ctx = RedisRWLockCtx(redis_host, "test_lock", ttl=500)
 
     ok = True
 

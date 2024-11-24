@@ -1,12 +1,15 @@
 import asyncio
+import os
 
 import pytest
 
 from redishilok.hilok import RedisHiLok
 
+redis_host = os.environ.get("REDIS_URL", "redis://localhost")
+
 
 async def test_write_lock_same_level():
-    h = RedisHiLok("redis://localhost")
+    h = RedisHiLok(redis_host)
 
     async with h.write("/a/b"):
         pass
@@ -20,7 +23,7 @@ async def test_write_lock_same_level():
 
 
 async def test_nested_write_locks():
-    h = RedisHiLok("redis://localhost")
+    h = RedisHiLok(redis_host)
 
     async with h.write("/a/b"):
         with pytest.raises(RuntimeError):
@@ -36,7 +39,7 @@ async def test_nested_write_locks():
 
 @pytest.mark.asyncio
 async def test_write_lock_on_ancestor_blocks_descendent():
-    async with RedisHiLok("redis://localhost") as h:
+    async with RedisHiLok(redis_host) as h:
         async with h.read("/mmm/b/c/d/e"):
             with pytest.raises(RuntimeError):
                 async with h.write("/mmm/b", timeout=0.1):
@@ -44,7 +47,7 @@ async def test_write_lock_on_ancestor_blocks_descendent():
 
 
 async def test_nested_read_and_write():
-    async with RedisHiLok("redis://localhost") as h:
+    async with RedisHiLok(redis_host) as h:
         async with h.read("/rrr/b"):
             # ok to read again
             async with h.read("/rrr/b", block=False):
@@ -57,7 +60,7 @@ async def test_nested_read_and_write():
 
 
 async def test_using_other_sep():
-    h = RedisHiLok("redis://localhost", separator=":")
+    h = RedisHiLok(redis_host, separator=":")
     async with h.read("qq:b"):
         with pytest.raises(RuntimeError):
             async with h.write("qq", block=False):
@@ -65,14 +68,14 @@ async def test_using_other_sep():
 
 
 async def test_read_lock_allows_write_descendant():
-    async with RedisHiLok("redis://localhost") as h:
+    async with RedisHiLok(redis_host) as h:
         async with h.read("/ll"):
             async with h.write("/ll/b/c"):
                 pass
 
 
 async def test_write_lock_blocks_descendant():
-    async with RedisHiLok("redis://localhost") as h:
+    async with RedisHiLok(redis_host) as h:
         async with h.write("/mm"):
             with pytest.raises(RuntimeError):
                 async with h.read("/mm/b/c", timeout=0.1):
@@ -80,7 +83,7 @@ async def test_write_lock_blocks_descendant():
 
 
 async def test_concurrent_reads():
-    async with RedisHiLok("redis://localhost") as h:
+    async with RedisHiLok(redis_host) as h:
 
         async def read_task():
             async with h.read("/ww/b/c"):
@@ -92,7 +95,7 @@ async def test_concurrent_reads():
 
 
 async def test_hierarchical_write_conflicts():
-    async with RedisHiLok("redis://localhost") as h:
+    async with RedisHiLok(redis_host) as h:
         async with h.write("/tt/b"):
             with pytest.raises(RuntimeError):
                 async with h.write("/tt/b/c", timeout=0.1):
@@ -100,7 +103,7 @@ async def test_hierarchical_write_conflicts():
 
 
 async def test_lock_timeout():
-    async with RedisHiLok("redis://localhost") as h:
+    async with RedisHiLok(redis_host) as h:
         async with h.write("/a/b/c"):
             with pytest.raises(RuntimeError):
                 async with h.write("/a/b/c", timeout=0.1):
@@ -108,7 +111,7 @@ async def test_lock_timeout():
 
 
 async def test_lock_refresh():
-    async with RedisHiLok("redis://localhost", ttl=500, refresh_interval=200) as h:
+    async with RedisHiLok(redis_host, ttl=500, refresh_interval=200) as h:
         async with h.write("/zzz/b/c"):
             await asyncio.sleep(1)  # exceeds the original TTL, but refresh catches it!
             with pytest.raises(RuntimeError):
