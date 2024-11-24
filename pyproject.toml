@@ -1,9 +1,24 @@
 [tool.poetry]
 name = "redishilok"
-version = "0.1.0"
-description = "Redis read-write distributed and hierarchical locking"
-authors = ["erik aronesty <erik@q32.com>"]
+version = "1.0.0"
+description = "Redis-based read-write distributed and hierarchical locking library"
+authors = ["Erik Aronesty <erik@q32.com>"]
 readme = "README.md"
+license = "MIT"
+repository = "https://github.com/puzzlefin/redishilok"  # Replace with actual GitHub repo
+homepage = "https://github.com/puzzlefin/redishilok"    # Same as above or project site
+keywords = ["redis", "locking", "distributed-locking", "hierarchical-locking", "python"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: System :: Distributed Computing",
+    "Topic :: Utilities"
+]
 
 [tool.poetry.dependencies]
 python = "^3.12"
@@ -14,6 +29,7 @@ redis = {extras = ["hiredis"], version = "^5.2.0"}
 [tool.poetry.group.dev.dependencies]
 pytest-asyncio = "^0.24.0"
 pre-commit = "^4.0.1"
+pytest-cov = "^6.0.0"
 
 [build-system]
 requires = ["poetry-core"]

@@ -95,7 +95,8 @@ async def test_refresh_failure(redis_client):
             async with lock_ctx.write():
                 # Simulate external lock tampering
                 await redis_client.hset("test_lock", "writer", "external_uuid")
-                await asyncio.sleep(2)
+                for _ in range(6):
+                    await asyncio.sleep(0.25)
                 ok = False
         except RuntimeError as e:
             assert "Refresh failed" in str(e)
