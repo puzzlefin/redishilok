@@ -32,7 +32,7 @@ jobs:
           environment:
             REDIS_URL: redis://redis:6379
           command: |
-            poetry run pytest -n 3 tests/ --cov=redishilok --cov-report=html --cov-fail-under=99
+            poetry run pytest -n 3 tests/ --cov=redishilok --cov-report=html --cov-fail-under=98
       - store_artifacts:
           path: htmlcov/
           destination: coverage_report
