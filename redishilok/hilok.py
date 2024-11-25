@@ -24,13 +24,11 @@ class RedisHiLok:
         self.refresh_interval = refresh_interval
         self.separator = separator
         self.cancel_on_lock_failure = cancel_on_lock_failure
-        print("Initialize", self)
 
     async def __aenter__(self) -> "RedisHiLok":
         return self
 
     async def __aexit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
-        print("Exiting", self)
         await self.close()
 
     async def close(self) -> None:
@@ -65,7 +63,6 @@ class RedisHiLok:
                 locks.append((lock, lock_ctx))
             return locks
         except Exception:
-            print("RELEASE ON EXCEPTION")
             await self._release_hierarchy(locks)
             raise
 
@@ -103,5 +100,4 @@ class RedisHiLok:
         try:
             yield
         finally:
-            print("NORMAL RELEASE")
             await self._release_hierarchy(locks)
