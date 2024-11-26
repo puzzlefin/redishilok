@@ -6,7 +6,7 @@ from typing import Any, AsyncIterator
 from redis import asyncio as aioredis
 
 from redishilok.rwlock import RedisRWLock
-from redishilok.types import RedisHiLokError, RedisRWLockStatus
+from redishilok.types import RedisHiLokError, RedisHiLokStatus
 
 
 class RedisRWLockCtx:
@@ -152,5 +152,5 @@ class RedisRWLockCtx:
         finally:
             await self.release_write()
 
-    async def status(self) -> RedisRWLockStatus:
+    async def status(self) -> RedisHiLokStatus:
         return await self.lock.status()

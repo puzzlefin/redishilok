@@ -1,12 +1,12 @@
 from .hilok import RedisHiLok
 from .rwctx import RedisRWLockCtx
 from .rwlock import RedisRWLock
-from .types import RedisHiLokError, RedisRWLockStatus
+from .types import RedisHiLokError, RedisHiLokStatus
 
 __all__ = [
     "RedisRWLock",
     "RedisHiLok",
     "RedisRWLockCtx",
-    "RedisRWLockStatus",
+    "RedisHiLokStatus",
     "RedisHiLokError",
 ]

@@ -7,7 +7,7 @@ from typing import Any, AsyncIterator
 from redis import asyncio as aioredis
 
 from redishilok.rwctx import RedisRWLockCtx
-from redishilok.types import RedisHiLokError
+from redishilok.types import RedisHiLokError, RedisHiLokStatus
 
 
 class RedisHiLok:
@@ -188,7 +188,7 @@ class RedisHiLok:
         block: bool = True,
         timeout: float | None = None,
         uuid: str | None = None,
-    ) -> AsyncIterator[None]:
+    ) -> AsyncIterator[str]:
         """Context manager for acquiring a read lock."""
         locks = await self._acquire_hierarchy(
             path,
@@ -212,7 +212,7 @@ class RedisHiLok:
         block: bool = True,
         timeout: float | None = None,
         uuid: str | None = None,
-    ) -> AsyncIterator[None]:
+    ) -> AsyncIterator[str]:
         """Context manager for acquiring a write lock."""
         locks = await self._acquire_hierarchy(
             path,
@@ -228,7 +228,7 @@ class RedisHiLok:
         finally:
             await self._release_hierarchy(locks, False)
 
-    async def status(self, path: str, uuid: str):
+    async def status(self, path: str, uuid: str) -> list[RedisHiLokStatus]:
         """Get the status of the lock at the given path."""
         nodes = self._path_split(path)
         status = []

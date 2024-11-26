@@ -3,7 +3,7 @@ import os
 
 from redis import asyncio as aioredis
 
-from redishilok.types import RedisHiLokError, RedisRWLockStatus
+from redishilok.types import RedisHiLokError, RedisHiLokStatus
 
 
 class RedisRWLock:
@@ -163,7 +163,7 @@ class RedisRWLock:
             self.restore = False
             self.held = False
 
-    async def status(self) -> RedisRWLockStatus:
+    async def status(self) -> RedisHiLokStatus:
         """Query the status of the lock."""
         readers_key = f"{self.path}:readers"
 
@@ -189,7 +189,7 @@ class RedisRWLock:
         result = await self.redis.eval(script, 2, self.path, readers_key, self.uuid)  # type: ignore[misc]
 
         lock_type, owned, ttl, rkeys = result
-        return RedisRWLockStatus(
+        return RedisHiLokStatus(
             held=bool(lock_type),
             type=lock_type if lock_type else None,
             owned=bool(owned),

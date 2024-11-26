@@ -2,7 +2,7 @@ import dataclasses
 
 
 @dataclasses.dataclass
-class RedisRWLockStatus:
+class RedisHiLokStatus:
     held: bool
     type: str | None
     owned: bool
