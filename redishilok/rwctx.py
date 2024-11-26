@@ -99,6 +99,8 @@ class RedisRWLockCtx:
         try:
             if self.refresh_interval > 0:
                 await self._stop_refresh()
+        except Exception:
+            pass
         finally:
             await self.lock.release_read_lock()
 
@@ -114,6 +116,8 @@ class RedisRWLockCtx:
         try:
             if self.refresh_interval > 0:
                 await self._stop_refresh()
+        except Exception:
+            pass
         finally:
             await self.lock.release_write_lock()
 

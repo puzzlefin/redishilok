@@ -97,6 +97,37 @@ async def main():
 asyncio.run(main())
 ```
 
+
+
+### Manually-managed Operations with Handles
+
+```python
+import asyncio
+from redishilok import RedisHiLok
+
+async def main():
+    hilok = RedisHiLok('redis://localhost')
+    uuid = await hilok.acquire_write('a/b')
+    await asyncio.sleep(1)  # Lock is not automatically refreshed, caller must "restore" the lock
+
+    # refresh by uuid, manually
+    manual = RedisHiLok('redis://localhost')
+    await manual.acquire_write("a/b", uuid=uuid)
+
+    # refresh automatically
+    other = RedisHiLok('redis://localhost', refresh_interval=1000)
+    async with other.write('a/b', uuid=uuid):
+        # lock is auto-refreshing in the background
+        pass
+
+    # free resources
+    await hilok.close()
+    await manual.close()
+    await other.close()
+
+asyncio.run(main())
+```
+
 ## Limitations
 - Requires a running Redis instance.
 - Not suitable for high-frequency locking scenarios (due to Redis round-trips).
