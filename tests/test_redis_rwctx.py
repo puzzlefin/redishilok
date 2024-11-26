@@ -1,6 +1,9 @@
 import asyncio
 import os
 
+import pytest
+
+from redishilok import RedisRWLock
 from redishilok.rwctx import RedisRWLockCtx
 
 redis_host = os.environ.get("REDIS_URL", "redis://localhost")
@@ -21,7 +24,7 @@ async def test_read_lock_context():
     tasks = [asyncio.create_task(read_task()) for _ in range(5)]
     await asyncio.gather(*tasks)
 
-    await lock_ctx.lock.close()
+    await lock_ctx.close()
 
 
 async def test_write_lock_context():
@@ -43,7 +46,7 @@ async def test_write_lock_context():
     # Final counter value should be 5
     assert shared_counter["value"] == 5
 
-    await lock_ctx.lock.close()
+    await lock_ctx.close()
 
 
 async def test_read_write_conflict():
@@ -71,7 +74,7 @@ async def test_read_write_conflict():
     # Ensure the writer waited for the reader to finish
     assert shared_counter["value"] == 1
 
-    await lock_ctx.lock.close()
+    await lock_ctx.close()
 
 
 async def test_refresh_failure():
@@ -93,4 +96,63 @@ async def test_refresh_failure():
 
     await write_task()
     assert ok
-    await lock_ctx.lock.close()
+    await lock_ctx.close()
+
+
+async def test_read_lock_restore_ctx():
+    lock = RedisRWLock(redis_host, "test_restore_read_ctx", ttl=2000)
+    await lock.acquire_read_lock()
+    uuid = lock.uuid
+
+    lock_ctx = RedisRWLockCtx(
+        redis_host,
+        "test_restore_read_ctx",
+        ttl=200,
+        uuid=uuid,
+        restore=True,
+        refresh_interval=100,
+    )
+    write_ctx = RedisRWLockCtx(redis_host, "test_restore_read_ctx")
+
+    # locked
+    with pytest.raises(RuntimeError):
+        async with write_ctx.write(block=False):
+            pass
+
+    async with lock_ctx.read():
+        # still locked
+        with pytest.raises(RuntimeError):
+            async with write_ctx.write(block=False):
+                pass
+        # ttl is 200, so it should be expired, except if it is refreshed
+        await asyncio.sleep(0.25)
+        # refresh works after restore
+        with pytest.raises(RuntimeError):
+            async with write_ctx.write(block=False):
+                pass
+
+    # dropping out of restored read lock releases it
+    async with write_ctx.write(block=False):
+        pass
+
+    await lock.close()
+    await lock_ctx.close()
+    await write_ctx.close()
+
+
+async def test_get_status():
+    h = RedisRWLockCtx(redis_host, "zzzgg", ttl=9999, refresh_interval=0)
+
+    async with h.write():
+        status = await h.status()
+        assert status.owned
+        assert status.owned
+
+    async with h.write():
+        status = await RedisRWLock(h.lock.redis, "zzzgg", 9999).status()
+        assert status.held
+        assert status.held
+        assert not status.owned
+        assert not status.owned
+
+    await h.close()

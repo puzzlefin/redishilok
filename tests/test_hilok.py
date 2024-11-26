@@ -9,14 +9,22 @@ redis_host = os.environ.get("REDIS_URL", "redis://localhost")
 
 
 async def test_write_lock_same_level():
-    h = RedisHiLok(redis_host)
+    h = RedisHiLok(redis_host, ttl=500000, refresh_interval=0)
+    path = "/" + os.urandom(8).hex() + "a/b"
 
-    async with h.write("/a/b"):
+    async with h.write(path) as uuid:
+        status = await h.status(path, uuid)
+        assert status[0].owned
+        assert status[1].owned
+        assert isinstance(uuid, str)
         pass
 
-    async with h.write("/a/b"):
+    async with h.write(path):
+        stats = await h.status(path, "mismatch")
+        assert stats[0].held
+        assert stats[1].held
         with pytest.raises(RuntimeError):
-            async with h.write("/a/b", block=False):
+            async with h.write(path, block=False):
                 pass
 
     await h.close()
@@ -117,3 +125,96 @@ async def test_lock_refresh():
             with pytest.raises(RuntimeError):
                 async with h.read("/zzz/b/c", block=False):
                     pass
+
+
+async def test_hierarchical_read_lock_restore():
+    lock_system = RedisHiLok(redis_host, ttl=20000, refresh_interval=0)
+
+    path = os.urandom(8).hex() + "_hierarchical/restore/read/"
+    uuid = await lock_system.acquire_read(path)
+
+    status = await lock_system.status(path, uuid)
+
+    assert status[0].owned
+    assert status[-1].owned
+
+    restored_uuid = await lock_system.acquire_read(path, uuid=uuid)
+
+    assert uuid == restored_uuid
+
+    with pytest.raises(RuntimeError):
+        await lock_system.acquire_write(path, block=False)
+
+    # Release the read lock using the restored UUID
+    await lock_system.release_read(path, uuid)
+
+    # Now the write lock should succeed
+    write_uuid = await lock_system.acquire_write(path)
+    assert write_uuid
+
+    await lock_system.release_write(path, write_uuid)
+    await lock_system.close()
+
+
+async def test_hierarchical_write_lock_restore():
+    lock_system = RedisHiLok(redis_host, ttl=2000, refresh_interval=500)
+
+    path = "hierarchical/restore/write"
+    uuid = await lock_system.acquire_write(path)
+
+    restored_uuid = await lock_system.acquire_write(path, uuid=uuid)
+
+    assert uuid == restored_uuid
+
+    with pytest.raises(RuntimeError):
+        await lock_system.acquire_read(path, block=False)
+
+    await lock_system.release_write(path, uuid)
+
+    read_uuid = await lock_system.acquire_read(path)
+    assert read_uuid
+
+    await lock_system.release_read(path, read_uuid)
+    await lock_system.close()
+
+
+async def test_hierarchical_read_write_conflict_restore():
+    lock_system = RedisHiLok(redis_host, ttl=2000, refresh_interval=500)
+
+    path = "hierarchical/conflict/restore"
+    read_uuid = await lock_system.acquire_read(path)
+
+    with pytest.raises(RuntimeError):
+        await lock_system.acquire_write(path, block=False)
+
+    restored_read_uuid = await lock_system.acquire_read(path, uuid=read_uuid)
+    assert read_uuid == restored_read_uuid
+
+    await lock_system.release_read(path, restored_read_uuid)
+
+    write_uuid = await lock_system.acquire_write(path)
+    assert write_uuid
+
+    await lock_system.release_write(path, write_uuid)
+    await lock_system.close()
+
+
+async def test_hierarchical_lock_expiry_and_restore():
+    lock_system = RedisHiLok(redis_host, ttl=300, refresh_interval=200)
+
+    path = "hierarchical/expiry/restore"
+    read_uuid = await lock_system.acquire_read(path)
+
+    # Sleep beyond TTL to let the lock expire
+    await asyncio.sleep(0.6)
+
+    # Attempt to restore the expired lock, should fail
+    with pytest.raises(RuntimeError):
+        await lock_system.acquire_read(path, uuid=read_uuid)
+
+    # Acquire a new read lock
+    new_uuid = await lock_system.acquire_read(path)
+    assert new_uuid != read_uuid
+
+    await lock_system.release_read(path, new_uuid)
+    await lock_system.close()

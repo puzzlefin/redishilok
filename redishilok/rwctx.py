@@ -16,6 +16,8 @@ class RedisRWLockCtx:
         ttl: int = 10000,
         refresh_interval: float = 3000,
         cancel_on_lock_failure: bool = True,
+        uuid: str | None = None,
+        restore: bool = False,
     ) -> None:
         """Context manager for acquiring Redis read/write locks.
 
@@ -32,7 +34,7 @@ class RedisRWLockCtx:
         self._context_task: Task[Any] | None = None
         self.cancel_on_lock_failure = cancel_on_lock_failure
         self.refresh_interval = refresh_interval
-        self.lock = RedisRWLock(redis, path, ttl)
+        self.lock = RedisRWLock(redis, path, ttl, uuid=uuid, restore=restore)
         self._refresh_task: Task[Any] | None = None
         self._stop_event = asyncio.Event()
 
@@ -46,10 +48,15 @@ class RedisRWLockCtx:
 
     async def close(self) -> None:
         """Close the redis connection."""
-        await self._stop_refresh()
+        try:
+            await self._stop_refresh()
+        except Exception:
+            pass
         await self.lock.close()
 
     async def _start_refresh(self, shared: bool) -> None:
+        self._context_task = asyncio.current_task()
+
         async def refresh_loop() -> None:
             try:
                 while not self._stop_event.is_set():
@@ -63,6 +70,7 @@ class RedisRWLockCtx:
                 self._stop_event.set()
                 if self._context_task and self.cancel_on_lock_failure:
                     self._context_task.cancel()
+                    self._context_task = None
                 raise
 
         self._refresh_task = asyncio.create_task(refresh_loop())
@@ -75,40 +83,65 @@ class RedisRWLockCtx:
                 await self._refresh_task
             except asyncio.CancelledError:
                 pass
+            self._context_task = None
             self._refresh_task = None
             self._stop_event.clear()
+
+    async def acquire_read(self, block: bool = True, timeout: float | None = None):
+        """Acquire a read lock."""
+        acquired = await self.lock.acquire_read_lock(block=block, timeout=timeout)
+        if acquired and self.refresh_interval > 0:
+            await self._start_refresh(shared=True)
+        return acquired
+
+    async def release_read(self) -> None:
+        """Release a read lock."""
+        try:
+            if self.refresh_interval > 0:
+                await self._stop_refresh()
+        finally:
+            await self.lock.release_read_lock()
+
+    async def acquire_write(self, block: bool = True, timeout: float | None = None):
+        """Acquire a write lock."""
+        acquired = await self.lock.acquire_write_lock(block=block, timeout=timeout)
+        if acquired and self.refresh_interval > 0:
+            await self._start_refresh(shared=False)
+        return acquired
+
+    async def release_write(self) -> None:
+        """Release a write lock."""
+        try:
+            if self.refresh_interval > 0:
+                await self._stop_refresh()
+        finally:
+            await self.lock.release_write_lock()
 
     @asynccontextmanager
     async def read(
         self, block: bool = True, timeout: float | None = None
     ) -> AsyncIterator[None]:
         """Context manager for acquiring a read lock."""
-        acquired = await self.lock.acquire_read_lock(block=block, timeout=timeout)
-        if not acquired:
-            raise RuntimeError(f"Failed to acquire read lock for {self.path}")
         try:
-            await self._start_refresh(shared=True)
+            got = await self.acquire_read(block=block, timeout=timeout)
+            if not got:
+                raise RuntimeError(f"Failed to acquire read lock for {self.path}")
             yield
         finally:
-            try:
-                await self._stop_refresh()
-            finally:
-                await self.lock.release_read_lock()
+            await self.release_read()
 
     @asynccontextmanager
     async def write(
         self, block: bool = True, timeout: float | None = None
     ) -> AsyncIterator[None]:
         """Context manager for acquiring a write lock."""
-        acquired = await self.lock.acquire_write_lock(block=block, timeout=timeout)
-        if not acquired:
-            raise RuntimeError(f"Failed to acquire write lock for {self.path}")
         try:
-            self._context_task = asyncio.current_task()
-            await self._start_refresh(shared=False)
+            got = await self.acquire_write(block=block, timeout=timeout)
+            if not got:
+                raise RuntimeError(f"Failed to acquire write lock for {self.path}")
             yield
         finally:
-            try:
-                await self._stop_refresh()
-            finally:
-                await self.lock.release_write_lock()
+            await self.release_write()
+
+    async def status(self):
+        return await self.lock.status()
