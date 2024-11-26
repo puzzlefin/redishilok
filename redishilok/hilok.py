@@ -105,7 +105,7 @@ class RedisHiLok:
                     await lock.close()
                 except asyncio.CancelledError:
                     pass
-            except Exception:
+            except Exception:  # pragma: no cover
                 # this isn't catastrophic, but we should log it
                 logging.exception("Failed to release hilok")
 

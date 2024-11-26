@@ -162,6 +162,9 @@ async def test_hierarchical_write_lock_restore():
     path = "hierarchical/restore/write"
     uuid = await lock_system.acquire_write(path)
 
+    # new manager, shouldn't matter
+    lock_system = RedisHiLok(lock_system.redis, ttl=2000, refresh_interval=500)
+
     restored_uuid = await lock_system.acquire_write(path, uuid=uuid)
 
     assert uuid == restored_uuid
