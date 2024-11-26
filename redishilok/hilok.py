@@ -7,10 +7,7 @@ from typing import Any, AsyncIterator
 from redis import asyncio as aioredis
 
 from redishilok.rwctx import RedisRWLockCtx
-
-
-class RedisHiLokError(RuntimeError):
-    pass
+from redishilok.types import RedisHiLokError
 
 
 class RedisHiLok:

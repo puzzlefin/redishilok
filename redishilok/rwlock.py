@@ -1,20 +1,9 @@
 import asyncio
-import dataclasses
 import os
 
 from redis import asyncio as aioredis
 
-
-@dataclasses.dataclass
-class RedisRWLockStatus:
-    held: bool
-    type: str | None
-    owned: bool
-    ttl: int | None
-
-
-class RedisRWLockError(RuntimeError):
-    pass
+from redishilok.types import RedisHiLokError, RedisRWLockStatus
 
 
 class RedisRWLock:
@@ -26,7 +15,7 @@ class RedisRWLock:
         path: str,
         ttl: int,
         uuid: str | None = None,
-        restore=False,
+        restore: bool = False,
     ):
         self._redis_param = redis_url_or_redis_conn
         self.path = path
@@ -61,7 +50,7 @@ class RedisRWLock:
                 await self.refresh_lock(True)
                 self.held = True
                 return True
-            except RedisRWLockError:
+            except RedisHiLokError:
                 return False
 
         script = """
@@ -75,7 +64,7 @@ class RedisRWLock:
         readers_key = f"{self.path}:readers"
         while True:
             acquired = await self.redis.eval(  # type: ignore[misc]
-                script, 2, self.path, readers_key, self.uuid, self.ttl
+                script, 2, self.path, readers_key, self.uuid, str(self.ttl)
             )
             if acquired or not block:
                 self.held = acquired
@@ -93,9 +82,9 @@ class RedisRWLock:
             try:
                 await self.refresh_lock(False)
                 if not self.held:
-                    raise RedisRWLockError("Restore failed")
+                    raise RedisHiLokError("Restore failed")
                 return True
-            except RedisRWLockError:
+            except RedisHiLokError:
                 return False
 
         script = """
@@ -112,7 +101,7 @@ class RedisRWLock:
         readers_key = f"{self.path}:readers"
         while True:
             acquired = await self.redis.eval(  # type: ignore[misc]
-                script, 2, self.path, readers_key, self.uuid, self.ttl
+                script, 2, self.path, readers_key, self.uuid, str(self.ttl)
             )
             if acquired or not block:
                 self.held = acquired
@@ -148,7 +137,7 @@ class RedisRWLock:
         )
         self.held = bool(refreshed)
         if not refreshed:
-            raise RedisRWLockError(
+            raise RedisHiLokError(
                 "Failed to refresh lock: Lock does not exist or is not held."
             )
 
@@ -156,10 +145,10 @@ class RedisRWLock:
         script = """
         redis.call("LREM", KEYS[1], 1, ARGV[1])
         """
-        # get human readable stack trace
+        # get human-readable stack trace
         readers_key = f"{self.path}:readers"
         try:
-            return await self.redis.eval(script, 1, readers_key, self.uuid)  # type: ignore[misc]
+            await self.redis.eval(script, 1, readers_key, self.uuid)  # type: ignore[misc]
         finally:
             self.restore = False
             self.held = False
@@ -169,7 +158,7 @@ class RedisRWLock:
         redis.call("HDEL", KEYS[1], "writer")
         """
         try:
-            return await self.redis.eval(script, 1, self.path, self.uuid)  # type: ignore[misc]
+            await self.redis.eval(script, 1, self.path, self.uuid)  # type: ignore[misc]
         finally:
             self.restore = False
             self.held = False

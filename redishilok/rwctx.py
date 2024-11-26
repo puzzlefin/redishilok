@@ -6,6 +6,7 @@ from typing import Any, AsyncIterator
 from redis import asyncio as aioredis
 
 from redishilok.rwlock import RedisRWLock
+from redishilok.types import RedisHiLokError, RedisRWLockStatus
 
 
 class RedisRWLockCtx:
@@ -64,7 +65,7 @@ class RedisRWLockCtx:
                         await self.lock.refresh_lock(shared=shared)
                     except RuntimeError as e:
                         # Lock lost; raise an exception to terminate the task
-                        raise RuntimeError(f"Refresh failed: {str(e)}") from e
+                        raise RedisHiLokError(f"Refresh failed: {str(e)}") from e
                     await asyncio.sleep(self.refresh_interval / 1000)
             except Exception:
                 self._stop_event.set()
@@ -87,7 +88,9 @@ class RedisRWLockCtx:
             self._refresh_task = None
             self._stop_event.clear()
 
-    async def acquire_read(self, block: bool = True, timeout: float | None = None):
+    async def acquire_read(
+        self, block: bool = True, timeout: float | None = None
+    ) -> bool:
         """Acquire a read lock."""
         acquired = await self.lock.acquire_read_lock(block=block, timeout=timeout)
         if acquired and self.refresh_interval > 0:
@@ -104,7 +107,9 @@ class RedisRWLockCtx:
         finally:
             await self.lock.release_read_lock()
 
-    async def acquire_write(self, block: bool = True, timeout: float | None = None):
+    async def acquire_write(
+        self, block: bool = True, timeout: float | None = None
+    ) -> bool:
         """Acquire a write lock."""
         acquired = await self.lock.acquire_write_lock(block=block, timeout=timeout)
         if acquired and self.refresh_interval > 0:
@@ -129,7 +134,7 @@ class RedisRWLockCtx:
         try:
             got = await self.acquire_read(block=block, timeout=timeout)
             if not got:
-                raise RuntimeError(f"Failed to acquire read lock for {self.path}")
+                raise RedisHiLokError(f"Failed to acquire read lock for {self.path}")
             yield
         finally:
             await self.release_read()
@@ -142,10 +147,10 @@ class RedisRWLockCtx:
         try:
             got = await self.acquire_write(block=block, timeout=timeout)
             if not got:
-                raise RuntimeError(f"Failed to acquire write lock for {self.path}")
+                raise RedisHiLokError(f"Failed to acquire write lock for {self.path}")
             yield
         finally:
             await self.release_write()
 
-    async def status(self):
+    async def status(self) -> RedisRWLockStatus:
         return await self.lock.status()
